@@ -56,7 +56,8 @@ static inline uint8_t reverse_byte(uint8_t x) {
 /* ---------- Main ---------- */
 
 int main(void) {
-    stdio_init_all();   /* UART + USB serial */
+    set_sys_clock_khz(200000, true);   /* 200 MHz — set before any peripheral init */
+    stdio_init_all();                  /* UART + USB serial (baud derived from sys_clk) */
 
     /* Allow up to 5 s for user to open serial terminal before first printf */
     for (int i = 5; i > 0; i--) {
@@ -112,9 +113,6 @@ int main(void) {
 
     neopixel_cancel_timer();                    /* Stop startup blink; config sets final color */
 
-    printf("PIO DAQ: Initializing\n");
-    set_sys_clock_khz(200000, true);            /* 200 MHz for capture timing */
-
     /* Create RUN_XXXXX dir and per-peripheral subdirs; or fall back to flat layout */
     init_run_directory(count_of(periphs));
 
@@ -156,15 +154,25 @@ int main(void) {
 
         gpio_init(periphs[i].ack_gpio);
         gpio_set_dir(periphs[i].ack_gpio, GPIO_IN);
-        gpio_pull_up(periphs[i].ack_gpio); /* ACK pulled up; peripheral pulls low when ready */
+        gpio_pull_up(periphs[i].ack_gpio); /* ACK as input; peripheral drives low when ready */
     }
 
     uint32_t sample_hz = sd_get_target_sample_hz();
     printf("Configured sample rate ~%u Hz\n", sample_hz);
 
+    /* --- SD write diagnostic (startup): read 256 bytes from SPI, write to TEST/diag.bin --- */
+    {
+        uint8_t diag_buf[256];
+        gpio_put(periphs[0].cs_gpio, 0);   /* Assert CS on peripheral 0 */
+        spi_read_blocking(spi0, 0x00, diag_buf, sizeof(diag_buf));  /* MISO noise if no peripheral */
+        gpio_put(periphs[0].cs_gpio, 1);   /* Deassert CS */
+        (void)diagnostic_sd_write_test(diag_buf, sizeof(diag_buf));
+    }
+
     /* --- Main capture loop --- */
     while (true) {
         bool any_failure = false;
+        bool any_captured = false;
 
         for (int i = 0; i < count_of(periphs); i++) {
             if (gpio_get(periphs[i].ack_gpio)) continue;  /* ACK high = no data, skip */
@@ -178,10 +186,20 @@ int main(void) {
 
             gpio_put(periphs[i].cs_gpio, 1);              /* Deassert CS */
 
+            /* ACK handshake: drive ACK HIGH to tell peripheral "received" */
+            gpio_set_dir(periphs[i].ack_gpio, GPIO_OUT);
+            gpio_put(periphs[i].ack_gpio, 1);             /* HIGH = transfer complete */
+            sleep_ms(10);                                  /* Hold high long enough for peripheral to see */
+            gpio_put(periphs[i].ack_gpio, 0);             /* Release */
+            gpio_set_dir(periphs[i].ack_gpio, GPIO_IN);   /* Back to input for next cycle */
+            gpio_pull_up(periphs[i].ack_gpio);
+
             /* Bit-reverse each byte (peripheral may send MSB-first; we want correct bit order) */
             for (uint32_t j = 0; j < CAPTURE_N_SAMPLES; j++) {
                 ((uint8_t *)capture_buf)[j] = reverse_byte(((uint8_t *)capture_buf)[j]);
             }
+
+            any_captured = true;
 
             /* Write to SD (or flash if SD fails). Returns false on fallback to flash. */
             bool wrote_to_sd = capture_to_sd(capture_buf, CAPTURE_N_SAMPLES/4, i, sample_hz);
@@ -197,9 +215,9 @@ int main(void) {
         }
 
         /* After polling all peripherals: green if all OK, red and halt if any fell back to flash */
-        if (!any_failure) {
+        if (any_captured && !any_failure) {
             neopixel_set_rgb(0, 100, 0);                  /* Solid green */
-        } else {
+        } else if (any_failure) {
             neopixel_set_rgb(100, 0, 0);
             printf("ERROR: SD unavailable. Capture written to FLASH. Halting.\n");
             while (true) {

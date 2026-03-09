@@ -601,6 +601,45 @@ bool capture_to_sd(const uint32_t *cap_words,
     return true;
 }
 
+bool diagnostic_sd_write_test(const void *data, uint32_t size) {
+    sd_init_if_needed();
+    if (!g_sd_mounted) {
+        printf("SD diagnostic: SKIP (SD not mounted)\n");
+        return false;
+    }
+
+    FRESULT fr = f_mkdir("0:/TEST");
+    if (fr != FR_OK && fr != FR_EXIST) {
+        printf("SD diagnostic: f_mkdir(TEST) failed, FR=%d\n", fr);
+        return false;
+    }
+
+    FIL fil;
+    fr = f_open(&fil, "0:/TEST/diag.bin", FA_WRITE | FA_CREATE_ALWAYS);
+    if (fr != FR_OK) {
+        printf("SD diagnostic: f_open(TEST/diag.bin) failed, FR=%d\n", fr);
+        return false;
+    }
+
+    UINT bw;
+    fr = f_write(&fil, data, size, &bw);
+    if (fr != FR_OK || bw != size) {
+        printf("SD diagnostic: f_write failed, FR=%d, bw=%u/%lu\n",
+               fr, bw, (unsigned long)size);
+        f_close(&fil);
+        return false;
+    }
+
+    fr = f_close(&fil);
+    if (fr != FR_OK) {
+        printf("SD diagnostic: f_close failed, FR=%d\n", fr);
+        return false;
+    }
+
+    printf("SD diagnostic: PASS (wrote %lu bytes to TEST/diag.bin)\n", (unsigned long)size);
+    return true;
+}
+
 uint32_t sd_get_target_sample_hz(void) {
     return g_target_sample_hz;
 }

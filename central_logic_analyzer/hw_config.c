@@ -18,7 +18,7 @@
 static spi_t spis[] = {  /* One SPI instance for SD card */
     {
         .hw_inst  = spi1,   /* SPI1 for SD (SPI0 used by logic_analyser for DAQs) */
-        .miso_gpio = 12,    /* GPIO numbers (not physical pin numbers) */
+        .miso_gpio = 8,    /* GPIO numbers (not physical pin numbers) */
         .mosi_gpio = 15,
         .sck_gpio  = 14,
         .baud_rate = 12500 * 1000,  // 12.5 MHz to start with

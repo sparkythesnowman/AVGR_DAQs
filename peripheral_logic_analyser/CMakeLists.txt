@@ -28,25 +28,25 @@ set(PICO_BOARD pico CACHE STRING "Board type")
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
-project(pio_logic_analyser C CXX ASM)
+project(peripheral_logic_analyzer C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(pio_logic_analyser
+add_executable(peripheral_logic_analyzer
     logic_analyser.c
     spi_central_config.c
 )
 
-pico_generate_pio_header(pio_logic_analyser ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
+pico_generate_pio_header(peripheral_logic_analyzer ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
 
-target_link_libraries(pio_logic_analyser PRIVATE pico_stdlib hardware_pio hardware_dma hardware_clocks hardware_spi)
-pico_add_extra_outputs(pio_logic_analyser)
+target_link_libraries(peripheral_logic_analyzer PRIVATE pico_stdlib hardware_pio hardware_dma hardware_clocks hardware_spi)
+pico_add_extra_outputs(peripheral_logic_analyzer)
 
 # Enable USB stdio, disable UART stdio for this target
-pico_enable_stdio_usb(pio_logic_analyser 1)
-pico_enable_stdio_uart(pio_logic_analyser 0)
+pico_enable_stdio_usb(peripheral_logic_analyzer 1)
+pico_enable_stdio_uart(peripheral_logic_analyzer 0)
 
 # add url via pico_set_program_url

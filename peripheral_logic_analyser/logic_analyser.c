@@ -15,8 +15,10 @@
 
 #include "hardware/pio.h"
 #include "hardware/dma.h"
+#include "hardware/gpio.h"
 #include "hardware/structs/bus_ctrl.h"
 #include "hardware/clocks.h"
+#include "hardware/spi.h"
 
 #include "spi_central_config.h"
 
@@ -199,7 +201,7 @@ static inline void neopixel_blink_once(uint8_t r, uint8_t g, uint8_t b, uint32_t
     neopixel_off();
 }
 
-// ---------- Helpers (lines 212-224) ----------
+// ---------- Helpers ----------
 
 static inline uint bits_packed_per_word(uint pin_count) {
     const uint SHIFT_REG_WIDTH = 32;
@@ -222,6 +224,9 @@ static bool write_capture_to_spi(const uint32_t *cap_words,
     if(!spi_central_ready()){
         spi_central_init();
     }
+
+    // Signal central: data ready (drive ACK low)
+    spi_central_signal_ready();
 
     //send header so central knows what's coming
     logic_log_header_t header = {0}; // start default
@@ -324,7 +329,10 @@ int main() {
     // Wait for serial monitor to connect (countdown so user can open terminal)
     for (int i = 5; i > 0; i--) {
         sleep_ms(1000);
-        if (stdio_usb_connected()) break;
+        if (stdio_usb_connected()) {
+            printf("USB connected, starting in %d...\n", i);
+            stdio_flush();
+        }
     }
     printf("\n=== PIO Logic Analyser ===\n");
     printf("sys_clk = %u Hz\n", clock_get_hz(clk_sys));
@@ -346,6 +354,42 @@ int main() {
     spi_central_init(); // init to central DAQ
 
     cancel_repeating_timer(&g_np_timer); // stop blinking, no more cpu interrupts
+
+    // ---------- SPI diagnostic: peripheral = SLAVE, central = MASTER ----------
+    // PL022 slave sends 1 byte per CS assertion. Master must toggle CS per byte.
+    {
+        // 4 messages, each 4 bytes long
+        uint8_t msgs[4][4] = {
+            {0xAA, 0xBB, 0xCC, 0xDD},
+            {0x11, 0x22, 0x33, 0x44},
+            {0xDE, 0xAD, 0xBE, 0xEF},
+            {0xCA, 0xFE, 0xBA, 0xBE},
+        };
+
+        printf("SPI diagnostic: SLAVE mode, 4 messages x 4 bytes\n");
+        stdio_flush();
+
+        // For each message: preload 4 bytes, master clocks 4 x 1-byte CS pulses
+        for (int m = 0; m < 4; m++) {
+            spi_central_send(msgs[m], 4);
+
+            uint8_t rx[4];
+            for (int i = 0; i < 4; i++) {
+                while (!spi_is_readable(spi1))
+                    tight_loop_contents();
+                rx[i] = (uint8_t)spi_get_hw(spi1)->dr;
+            }
+
+            printf("  Msg %d TX: %02X %02X %02X %02X  RX: %02X %02X %02X %02X\n",
+                   m, msgs[m][0], msgs[m][1], msgs[m][2], msgs[m][3],
+                   rx[0], rx[1], rx[2], rx[3]);
+        }
+
+        printf("  Final SR: 0x%02X\n", spi_get_hw(spi1)->sr);
+        stdio_flush();
+
+        while (true) tight_loop_contents();
+    }
 
     printf("PIO DAQ: Initializing\n");
     set_sys_clock_khz(200000, true);
@@ -399,7 +443,7 @@ int main() {
     uint32_t sample_hz = (uint32_t)((float)f_sys / (2.0f * g_clkdiv) + 0.5f);
     printf("Configured sample rate ~%u Hz (clkdiv=%.3f)\n", sample_hz, clkdiv);
 
-    // ---------- Repeating capture loop ----------
+    // ---------- capture loop ----------
     while (true) {
     
         // Configure DMA for this capture

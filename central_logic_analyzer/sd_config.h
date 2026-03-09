@@ -24,3 +24,6 @@ uint32_t sd_get_target_sample_hz(void);
 const char *sd_get_file_prefix(void);
 const char *sd_get_run_dir_name(void);
 uint32_t sd_get_capture_index(void);
+
+/* Diagnostic: write data to TEST/diag.bin. Returns true on success. */
+bool diagnostic_sd_write_test(const void *data, uint32_t size);
