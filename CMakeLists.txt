@@ -34,7 +34,7 @@ add_subdirectory(
 
 # ── Peripheral target ─────────────────────────────────────────────────────────
 add_executable(peripheral_logic_analyzer
-    peripheral/logic_analyser.c
+    peripheral/logic_analyzer.c
     peripheral/spi_slave_config.c
     peripheral/neopixel.c
     peripheral/capture.c
@@ -58,8 +58,7 @@ pico_add_extra_outputs(peripheral_logic_analyzer)
 
 # ── Central target ────────────────────────────────────────────────────────────
 add_executable(central_logic_analyzer
-    central/logic_analyser.c
-    central/hw_config.c
+    central/logic_analyzer.c
     central/flash_log.c
     central/neopixel.c
     central/sd_config.c

@@ -11,12 +11,14 @@ void spi_slave_init(void) {
     if (g_spi_init_done) return;
 
     spi_init(SPI_SLAVE_INST, 12500u * 1000u);
+    // Match central explicitly: 8-bit frames, mode 0, MSB-first.
+    // spi_set_format(SPI_SLAVE_INST, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
     hw_clear_bits(&spi_get_hw(SPI_SLAVE_INST)->cr1, SPI_SSPCR1_SSE_BITS);
     spi_set_slave(SPI_SLAVE_INST, true);
     spi_get_hw(SPI_SLAVE_INST)->cpsr = 2;
     hw_set_bits(&spi_get_hw(SPI_SLAVE_INST)->cr1, SPI_SSPCR1_SSE_BITS);
 
-    gpio_set_function(SPI_TX_PIN,  GPIO_FUNC_SPI);
+    gpio_set_function(SPI_TX_PIN,  GPIO_FUNC_SPI); // without MISO line
     gpio_set_function(SPI_RX_PIN,  GPIO_FUNC_SPI);
     gpio_set_function(SPI_SCK_PIN, GPIO_FUNC_SPI);
     gpio_set_function(SPI_CS_PIN,  GPIO_FUNC_SPI);

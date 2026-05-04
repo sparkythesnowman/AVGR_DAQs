@@ -13,7 +13,7 @@
 #define SPI_CS_PIN          13u   // CSn: chip select driven by central
 
 // Handshake pin (input from central: HIGH = "go, send data")
-#define ACK_PIN             27
+#define ACK_PIN             26
 
 // Initialise SPI1 hardware + GPIO functions. Configures ACK_PIN as input.
 void spi_slave_init(void);
