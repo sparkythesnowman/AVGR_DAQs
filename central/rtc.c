@@ -16,7 +16,7 @@ void mcp_set_time(i2c_inst_t *i2c, uint8_t hours, uint8_t minutes, uint8_t secon
 
 // ── get time ─────────────────────────────────────────────────────────────────
 
-trigger_time_t rtc_get_time(i2c_inst_t *i2c) {
+trigger_time_t rtc_get_time(i2c_inst_t *i2c) { //the struct is trigger_time_t but it is not necessarily trigger time
     trigger_time_t t = {0};
 
     uint8_t reg = REG_RTCSEC;
@@ -42,4 +42,12 @@ trigger_time_t rtc_get_time(i2c_inst_t *i2c) {
     t.day   = bcd_to_dec(raw[3] & 0x07);   // WKDAY (day-of-week 1-7); mask OSCRUN/PWRFAIL/VBATEN
 
     return t;
+}
+
+bool mcp_is_running(i2c_inst_t *i2c) {
+    uint8_t reg = 0x03; // RTC status register
+    uint8_t val;
+    i2c_write_blocking(i2c, RTC_ADDR, &reg, 1, true);
+    i2c_read_blocking(i2c, RTC_ADDR, &val, 1, false);
+    return (val & 0x20) != 0;  // bit 5 = OSCRUN
 }

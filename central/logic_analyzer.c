@@ -53,6 +53,7 @@
 #define RTC_SDA_PIN   8
 #define RTC_SCL_PIN   9
 #define RTC_BAUD_HZ   (200 * 1000u) // 400 kHz
+static trigger_time_t current_time = {0};
 
 // ---------- Peripherals ----------
 #define N_PERIPHS  3
@@ -137,6 +138,15 @@ static void rtc_init(void) {
     uint8_t mm = (uint8_t)((bt[3] - '0') * 10 + (bt[4] - '0'));
     uint8_t ss = (uint8_t)((bt[6] - '0') * 10 + (bt[7] - '0'));
     printf("Setting RTC time to %02u:%02u:%02u\n", hh, mm, ss);
+
+    if (!mcp_is_running(RTC_I2C)) {
+        printf("RTC is not running. Setting time...\n");
+        mcp_set_time(RTC_I2C, hh, mm, ss);
+    } else {
+        printf("RTC is running. Getting time...\n");
+        current_time = rtc_get_time(RTC_I2C);
+        printf("RTC: %02u:%02u:%02u\n", current_time.hour, current_time.min, current_time.sec);
+    }
     // mcp_set_time(RTC_I2C, hh, mm, ss);
 }
 

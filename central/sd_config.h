@@ -15,13 +15,13 @@ typedef struct {
 /* Initialize SD driver and mount "0:". Returns true on success. */
 bool sd_init(void); 
 
-static void trim_line(char *s) {
-    // Strip trailing \r\n and spaces
-    size_t len = strlen(s);
-    while (len > 0 && (s[len-1] == '\r' || s[len-1] == '\n' || s[len-1] == ' ' || s[len-1] == '\t')) {
-        s[--len] = '\0';
-    }
-}
+// static void trim_line(char *s) {
+//     // Strip trailing \r\n and spaces
+//     size_t len = strlen(s);
+//     while (len > 0 && (s[len-1] == '\r' || s[len-1] == '\n' || s[len-1] == ' ' || s[len-1] == '\t')) {
+//         s[--len] = '\0';
+//     }
+// }
 
 /* Load config from SD*/
 // static config_state_t load_config_from_sd(void);

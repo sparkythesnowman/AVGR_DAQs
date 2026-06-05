@@ -26,7 +26,10 @@ void mcp_set_time(i2c_inst_t *i2c, uint8_t hours, uint8_t minutes, uint8_t secon
 
 // ── get time ─────────────────────────────────────────────────────────────────
 
-/* Read SEC/MIN/HOUR from the RTC and return them in a trigger_time_t.
+/* Read SEC/MIN/HOUR from the RTC and return them in a time_t.
    Date fields (year/month/day) are always zeroed. On an I2C error the
    returned struct is all zeros. */
-trigger_time_t rtc_get_time(i2c_inst_t *i2c);
+trigger_time_t rtc_get_time(i2c_inst_t *i2c); //the struct is trigger_time_t but it is not necessarily trigger time
+
+/* Check if the MCP7940N is running by reading the OSCRUN bit. */
+bool mcp_is_running(i2c_inst_t *i2c);
