@@ -25,7 +25,7 @@
 
 // ---------- Config ----------
 const uint TRIGGER_PIN   = 11;
-const uint ARM_PIN       = 29;
+const uint ARM_PIN       = SPI_RX_PIN;
 const bool TRIGGER_LEVEL = true;
 
 static uint32_t g_capture_index    = 0;
@@ -293,6 +293,8 @@ int main(void) {
         pio_sm_set_enabled(pio, sm, true);
         dma_channel_wait_for_finish_blocking(dma_chan);
         pio_sm_set_enabled(pio, sm, false);
+        printf("Capture complete.\n");
+        neopixel_blink_once(50, 50, 50, 500); // grey = triggered + capture complete
 
         uint8_t *bytes  = (uint8_t *)capture_buf; // recast as uint8_t rather than uint32_t
         // Bit-reverse every captured byte in place (treats capture_buf as a byte stream).
@@ -331,7 +333,16 @@ int main(void) {
 
         while (gpio_get(SPI_CS_PIN)) tight_loop_contents();
         spi_slave_init();
+        // if (!spi_central_ready()) {
+        //     printf("ERROR: SPI not ready. Halting.\n");
+        //     while (true) {
+        //         neopixel_set_rgb(100, 0, 0); //red = SPI not ready
+        //         //flash procedure here
+        //         tight_loop_contents();
+        //     }
+        // }
         spi_write_blocking(SPI_SLAVE_INST, bytes, 131072u);
+        neopixel_blink_once(0, 100, 0, 1000); // green = sent
         spi_slave_deinit();
         printf("Transfer to central complete.\n");
 
@@ -349,7 +360,10 @@ int main(void) {
         neopixel_set_rgb(0, 100, 0); // green = sent
         // printf("Capture %lu done, sent %u words to central.\n",
         //        (unsigned long)(g_capture_index - 1), buf_size_words);
-        while (true) tight_loop_contents();
+        while (true){
+            neopixel_set_rgb(0, 100, 0); // green = sent
+            tight_loop_contents();
+        }
     }
 }
 

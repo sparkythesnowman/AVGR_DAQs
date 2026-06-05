@@ -50,6 +50,7 @@ target_link_libraries(peripheral_logic_analyzer PRIVATE
     hardware_dma
     hardware_clocks
     hardware_spi
+    hardware_i2c
 )
 
 pico_enable_stdio_usb(peripheral_logic_analyzer 1)
@@ -62,6 +63,7 @@ add_executable(central_logic_analyzer
     central/flash_log.c
     central/neopixel.c
     central/sd_config.c
+    central/rtc.c
 )
 
 pico_generate_pio_header(central_logic_analyzer ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
@@ -76,6 +78,7 @@ target_link_libraries(central_logic_analyzer PRIVATE
     hardware_sync
     hardware_clocks
     hardware_spi
+    hardware_i2c
     FatFs_SPI
 )
 
