@@ -56,7 +56,9 @@
 static trigger_time_t current_time = {0};
 
 // ---------- Peripherals ----------
-#define N_PERIPHS  3
+#define N_PERIPHS  8
+#define DEFAULT_SAMPLE_HZ   (100u * 1000000u) //100 MHz
+uint8_t cap_cnt = 0;
 
 // ---------- Capture buffer (131072 bytes = 128 kB) ----------
 #define CAPTURE_BYTES   131072u
@@ -75,19 +77,7 @@ static trigger_time_t trigger_time = {0};
 // static uint32_t g_target_sample_hz = DEFAULT_SAMPLE_HZ;
 // static char     g_file_prefix[FILE_PREFIX_MAX_LEN] = DEFAULT_FILE_PREFIX;
 
-// typedef struct {
-//     uint32_t magic;         // 'LAC1' = 0x3143414C
-//     uint16_t version;       // 1
-//     uint16_t hdr_len;       // sizeof(header)
-//     uint32_t sample_count;  // logical samples per pin
-//     uint32_t pin_base;
-//     uint32_t pin_count;
-//     uint32_t sample_hz;     // effective sample rate
-//     uint32_t trigger_pin;
-//     uint32_t trigger_level; // 0/1
-//     uint32_t word_count;    // 32-bit words stored following header
-//     uint32_t reserved0;
-// } logic_log_header_t;
+
 
 // ---------- SPI helpers ----------
 static void spi_master_init(void) {
@@ -106,6 +96,8 @@ static void arm_and_trigger_init(void) {
     gpio_init(TRIGGER_IN_PIN);
     gpio_set_dir(TRIGGER_IN_PIN, GPIO_IN);
     gpio_pull_down(TRIGGER_IN_PIN);
+
+    
 }
 // ---------- Demux init ----------
 static void demux_init(void) {
@@ -130,16 +122,17 @@ static void rtc_init(void) {
     gpio_set_function(RTC_SCL_PIN, GPIO_FUNC_I2C);
     gpio_pull_up(RTC_SDA_PIN);
     gpio_pull_up(RTC_SCL_PIN);
-
-    // Seed an initial time from the firmware build time ("hh:mm:ss") and
-    // start the oscillator so the chip keeps track of time.
-    const char *bt = __TIME__;
-    uint8_t hh = (uint8_t)((bt[0] - '0') * 10 + (bt[1] - '0'));
-    uint8_t mm = (uint8_t)((bt[3] - '0') * 10 + (bt[4] - '0'));
-    uint8_t ss = (uint8_t)((bt[6] - '0') * 10 + (bt[7] - '0'));
-    printf("Setting RTC time to %02u:%02u:%02u\n", hh, mm, ss);
+    
+    // mcp_enable_battery(RTC_I2C);
 
     if (!mcp_is_running(RTC_I2C)) {
+        // Seed an initial time from the firmware build time ("hh:mm:ss") and
+        // start the oscillator so the chip keeps track of time.
+        const char *bt = __TIME__;
+        uint8_t hh = (uint8_t)((bt[0] - '0') * 10 + (bt[1] - '0'));
+        uint8_t mm = (uint8_t)((bt[3] - '0') * 10 + (bt[4] - '0'));
+        uint8_t ss = (uint8_t)((bt[6] - '0') * 10 + (bt[7] - '0'));
+        printf("Setting RTC time to %02u:%02u:%02u\n", hh, mm, ss);
         printf("RTC is not running. Setting time...\n");
         mcp_set_time(RTC_I2C, hh, mm, ss);
     } else {
@@ -147,15 +140,9 @@ static void rtc_init(void) {
         current_time = rtc_get_time(RTC_I2C);
         printf("RTC: %02u:%02u:%02u\n", current_time.hour, current_time.min, current_time.sec);
     }
-    // mcp_set_time(RTC_I2C, hh, mm, ss);
 }
 
-// bool logic_has_saved_capture(void) {
-//     const logic_log_header_t *hdr = (const logic_log_header_t *)(XIP_BASE + LOG_OFFSET);
-//     if (hdr->magic != LOG_MAGIC || hdr->version != 1) return false;
-//     if (hdr->word_count == 0 || hdr->word_count > (LOG_REGION_SIZE / 4)) return false;
-//     return true;
-// }
+
 // Probe every 7-bit address and report which ones ACK. Useful to tell apart
 // "nothing on the bus" (wiring/power/pull-ups) vs "device at another address".
 // static void rtc_bus_scan(void) {
@@ -210,6 +197,11 @@ int main(void) {
 
     neopixel_init();  // dim orange = starting
     rtc_init(); //for now since we dont have the battery running the rtc in the background
+
+    // if (logic_has_saved_capture()) {
+    //     printf("Capture found in flash. Erasing...\n");
+    //     logic_erase_saved_capture();
+    // }
 
     // ---------- PIN TOGGLE TEST ----------
     // {
@@ -809,32 +801,32 @@ int main(void) {
 
     demux_init();
 
-    // CS held high as plain GPIO until first ACK pulse (never float)
-    gpio_init(SPI_CS_PIN);
-    gpio_set_dir(SPI_CS_PIN, GPIO_OUT);
-    gpio_put(SPI_CS_PIN, 1);
-
-    // ARM/TX held high until arm pulse received
-    gpio_init(SPI_TX_PIN);
-    gpio_set_dir(SPI_TX_PIN, GPIO_OUT);
-    gpio_put(SPI_TX_PIN, 0);
-    printf("Ready.\n");
-
     while (true) {
-
+        init_run_directory();
         arm_and_trigger_init();
+
+        gpio_init(SPI_TX_PIN);
+        gpio_set_dir(SPI_TX_PIN, GPIO_OUT);
+        gpio_put(SPI_TX_PIN, 0);
+        // CS held high as plain GPIO until first ACK pulse (never float)
+
+        gpio_init(SPI_CS_PIN);
+        gpio_set_dir(SPI_CS_PIN, GPIO_OUT);
+        gpio_put(SPI_CS_PIN, 1);
 
         // 1. wait for universal ARM signal (100 ms pulse high)
         while(!gpio_get(ARM_IN_PIN)) tight_loop_contents();
-        // neopixel_blink_once(50, 50, 50, 500); // grey = arm pulse initiated
+        neopixel_blink_once(50, 50, 50, 500); // grey = arm pulse initiated
         gpio_put(SPI_TX_PIN, 1);
-        sleep_us(100);
+        sleep_ms(1000);
         gpio_put(SPI_TX_PIN, 0);
         printf("ARM pulse received\n");
+        neopixel_off();
         
         sleep_ms(1000);
         gpio_put(SPI_TX_PIN, 0);
-        // rtc_print_time();
+        sd_init();
+        
 
         // 2. wait for trigger pulse (100 ms pulse high)
         while(!gpio_get(TRIGGER_IN_PIN)) tight_loop_contents();
@@ -949,13 +941,13 @@ int main(void) {
             //            (unsigned long)mismatches, (unsigned long)scan_limit);
             // }
 
-            bool transfer = write_capture_to_sd(rx_buf, CAPTURE_BYTES, &trigger_time, v);
+            bool transfer = write_capture_to_sd(rx_buf, CAPTURE_BYTES, DEFAULT_SAMPLE_HZ, &trigger_time, v, cap_cnt);
             if (!transfer) {
                 printf("ERROR: SD write failed for periph %d\n", v);
-                // neopixel_blink_once(100, 0, 0, 1000); //red
+                // neopixel_blink_once(100, 0, 0, 1000); //red  
             }
             else {
-                // neopixel_blink_once(0, 100, 0, 1000); //green
+                neopixel_blink_once(0, 100, 0, 1000); //green
             }
 
             // sleep_ms(STEP_MS - FLASH_MS);
@@ -966,6 +958,8 @@ int main(void) {
         sleep_ms(1000);
         // neopixel_set_rgb(0, 100, 0); //green
         sleep_ms(1000);
+
+        cap_cnt++;
 
     }
 }

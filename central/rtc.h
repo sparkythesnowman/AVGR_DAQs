@@ -24,9 +24,12 @@ static inline uint8_t dec_to_bcd(uint8_t dec) {
 /* Write hours/minutes/seconds and start the oscillator (ST bit), 24-hour mode. */
 void mcp_set_time(i2c_inst_t *i2c, uint8_t hours, uint8_t minutes, uint8_t seconds);
 
+// ------ turn on battery
+void mcp_enable_battery(i2c_inst_t *i2c);
+
 // ── get time ─────────────────────────────────────────────────────────────────
 
-/* Read SEC/MIN/HOUR from the RTC and return them in a time_t.
+/* Read DAY/SEC/MIN/HOUR from the RTC and return them in a time_t.
    Date fields (year/month/day) are always zeroed. On an I2C error the
    returned struct is all zeros. */
 trigger_time_t rtc_get_time(i2c_inst_t *i2c); //the struct is trigger_time_t but it is not necessarily trigger time

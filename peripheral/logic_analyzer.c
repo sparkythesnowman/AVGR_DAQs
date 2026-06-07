@@ -46,12 +46,6 @@ static inline uint8_t reverse_byte(uint8_t x) {
 //   3. Stream full capture buffer to central
 //   4. Deinit SPI1
 
-// static void write_capture_to_spi(uint32_t *capture_buf, uint32_t buf_size_words) {
-//     spi_slave_init();
-//     spi_write_blocking(SPI_SLAVE_INST, (const uint8_t *)capture_buf, buf_size_words * sizeof(uint32_t));
-//     spi_slave_deinit();
-//     return true;
-// }
 
 static void test_gpio_init(void) {
     gpio_init(SPI_RX_PIN);
@@ -68,6 +62,15 @@ static void test_gpio_init(void) {
     gpio_put(SPI_SCK_PIN, 0);
 }
 
+static void arm_and_trigger_init(void) {
+    gpio_init(ARM_PIN);
+    gpio_set_dir(ARM_PIN, GPIO_IN);
+    gpio_pull_down(ARM_PIN);
+    gpio_init(TRIGGER_PIN);
+    gpio_set_dir(TRIGGER_PIN, GPIO_IN);
+    gpio_pull_down(TRIGGER_PIN);
+}
+
 // ---------- Main ----------
 int main(void) {
 
@@ -79,8 +82,6 @@ int main(void) {
     }
     printf("\n=== PIO Logic Analyser (peripheral) ===\n");
     printf("sys_clk = %u Hz\n", clock_get_hz(clk_sys));
-
-    neopixel_init();
 
     gpio_init(ACK_PIN);
     gpio_set_dir(ACK_PIN, GPIO_IN);
@@ -217,6 +218,7 @@ int main(void) {
 
     printf("PIO DAQ: Initialising\n");
     set_sys_clock_khz(200000, true);
+    neopixel_init();
     printf("Config: SAMPLE_HZ=%u\n", g_target_sample_hz);
 
     uint32_t buf_size_words = words_for_samples(CAPTURE_N_SAMPLES, CAPTURE_PIN_COUNT);
@@ -235,18 +237,6 @@ int main(void) {
     uint prog_off = clk_sample_program_load(pio);
     clk_sample_sm_init(pio, sm, prog_off, ADC_CLK_PIN, CAPTURE_PIN_BASE, clkdiv);
 
-    gpio_init(TRIGGER_PIN);
-    gpio_set_dir(TRIGGER_PIN, GPIO_IN);
-    gpio_pull_down(TRIGGER_PIN);
-
-    gpio_init(ARM_PIN);
-    gpio_set_dir(ARM_PIN, GPIO_IN);
-    gpio_pull_down(ARM_PIN);
-
-    gpio_init(SPI_CS_PIN);
-    gpio_set_dir(SPI_CS_PIN, GPIO_IN);
-    gpio_pull_down(SPI_CS_PIN);
-
     uint dma_chan = dma_claim_unused_channel(true);
     dma_channel_config c = dma_channel_get_default_config(dma_chan);
     channel_config_set_read_increment(&c, false);
@@ -260,6 +250,14 @@ int main(void) {
     // set_sys_clock_khz(124, true);
     // ---------- Capture loop ----------
     while (true) {
+        //initialize ARM and TRIGGER pins
+        arm_and_trigger_init();
+
+        //initialize ACK (CS) pin
+        gpio_init(SPI_CS_PIN);
+        gpio_set_dir(SPI_CS_PIN, GPIO_IN);
+        gpio_pull_down(SPI_CS_PIN);
+
         clock_configure(
             clk_peri,
             0, // glitchless mux not used for clk_peri
@@ -285,6 +283,7 @@ int main(void) {
         neopixel_set_rgb(0, 0, 100); // blue = waiting for ARM
         while (!gpio_get(ARM_PIN)) tight_loop_contents();
         neopixel_blink_once(50, 50, 50, 500); // grey = armed
+        neopixel_off();
 
         printf("Arming trigger for capture %lu...\n", (unsigned long)g_capture_index);
         g_capture_index++;
@@ -342,11 +341,9 @@ int main(void) {
         //     }
         // }
         spi_write_blocking(SPI_SLAVE_INST, bytes, 131072u);
-        neopixel_blink_once(0, 100, 0, 1000); // green = sent
         spi_slave_deinit();
         printf("Transfer to central complete.\n");
-
-        sleep_ms(3000);
+        neopixel_blink_once(0, 100, 0, 1000); // green = sent
 
         // if (ok) {
         //     neopixel_set_rgb(0, 100, 0); // green = sent
@@ -357,13 +354,8 @@ int main(void) {
         //         tight_loop_contents();
         //     }
         // }
-        neopixel_set_rgb(0, 100, 0); // green = sent
         // printf("Capture %lu done, sent %u words to central.\n",
         //        (unsigned long)(g_capture_index - 1), buf_size_words);
-        while (true){
-            neopixel_set_rgb(0, 100, 0); // green = sent
-            tight_loop_contents();
-        }
     }
 }
 

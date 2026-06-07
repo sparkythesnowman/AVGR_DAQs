@@ -105,11 +105,6 @@ static uint32_t g_file_index = 0;
 //     hdr.version       = 1;
 //     hdr.hdr_len       = sizeof(hdr);
 //     hdr.sample_count  = sample_count;  // logical samples
-//     hdr.pin_base      = pin_base;
-//     hdr.pin_count     = pin_count;
-//     hdr.sample_hz     = sample_hz;
-//     hdr.trigger_pin   = trigger_pin;
-//     hdr.trigger_level = trigger_level;
 //     hdr.word_count    = word_count;    // 32-bit words
 
 //     uint8_t header_block[HEADER_STORE_LEN];

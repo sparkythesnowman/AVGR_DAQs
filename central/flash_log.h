@@ -14,15 +14,18 @@ bool flash_log_write(const uint8_t *data, uint32_t len);
 
 void logic_erase_saved_capture(void);
 
+/* Check if there is a capture in flash*/
+// bool logic_has_saved_capture(void);
+
 /* Save capture to Flash*/
-void logic_save_capture_to_flash_raw(const uint32_t *cap_words,
-    uint32_t sample_count,
-    uint32_t word_count,
-    uint32_t pin_base,
-    uint32_t pin_count,
-    uint32_t sample_hz,
-    uint32_t trigger_pin,
-    uint32_t trigger_level);
+// void logic_save_capture_to_flash_raw(const uint32_t *cap_words,
+//     uint32_t sample_count,
+//     uint32_t word_count,
+//     uint32_t pin_base,
+//     uint32_t pin_count,
+//     uint32_t sample_hz,
+//     uint32_t trigger_pin,
+//     uint32_t trigger_level);
 
 /* Flush and close the current capture file. */
 void flash_log_close(void);

@@ -2,7 +2,6 @@
 #include <stdio.h>
 
 // ── set time ─────────────────────────────────────────────────────────────────
-
 void mcp_set_time(i2c_inst_t *i2c, uint8_t hours, uint8_t minutes, uint8_t seconds) {
     uint8_t buf[4];
     buf[0] = REG_RTCSEC;
@@ -12,6 +11,23 @@ void mcp_set_time(i2c_inst_t *i2c, uint8_t hours, uint8_t minutes, uint8_t secon
     printf("RTC: write to register %02u: %02u:%02u:%02u\n", REG_RTCSEC, hours, minutes, seconds);
     i2c_write_blocking(i2c, RTC_ADDR, buf, 4, false);
     printf("RTC: set time to %02u:%02u:%02u\n", hours, minutes, seconds);
+}
+
+// ------ turn on battery
+void mcp_enable_battery(i2c_inst_t *i2c) {
+    uint8_t reg = 0x03;
+    uint8_t val;
+
+    // read current value of register 0x03
+    i2c_write_blocking(i2c, RTC_ADDR, &reg, 1, true);
+    i2c_read_blocking(i2c, RTC_ADDR, &val, 1, false);
+
+    // set bit 3 (VBATEN) without touching other bits
+    val |= 0x08;
+
+    // write back
+    uint8_t buf[2] = {0x03, val};
+    i2c_write_blocking(i2c, RTC_ADDR, buf, 2, false);
 }
 
 // ── get time ─────────────────────────────────────────────────────────────────

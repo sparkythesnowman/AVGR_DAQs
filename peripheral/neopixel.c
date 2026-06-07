@@ -40,6 +40,8 @@ static inline void ws2812_program_init(PIO pio, uint sm, uint offset,
     /* Apply config and start SM */
     pio_sm_init(pio, sm, offset, &c);
     pio_sm_set_enabled(pio, sm, true);
+
+    neopixel_off();
 }
 
 /* WS2812 expects GRB order; pack into 24-bit value (shifted for autopull). */
