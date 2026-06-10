@@ -34,7 +34,7 @@
 #define SPI_CS_PIN      1
 #define SPI_TX_PIN      3
 #define SPI_SCK_PIN     6
-#define SPI_BAUD_HZ     (12500u * 1000u)   // 12.5MHz
+#define SPI_BAUD_HZ     (6250u * 1000u)   // 6.25MHz
 
 #define A_PIN      27   // Select A (MSB)
 #define B_PIN      28   // Select B

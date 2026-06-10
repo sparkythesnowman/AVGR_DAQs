@@ -39,9 +39,9 @@ function [samples] = read_daq_minimal(filename)
     % Trim to requested numSamples
     samples = allSamples(1:numSamples);
     % Optional: plot samples
-    plot(linspace(0,numSamples/100e6,numSamples),double(samples))%/255*1.9+0.1);
-    xlabel('Sample number');
-    ylabel('Bit values (0-255)');
+    plot(linspace(0,numSamples/100e6,numSamples)/100e6*1000,double(samples)/255*1.9+0.1)%/255*1.9+0.1);
+    xlabel('ms');
+    ylabel('V');
     grid on;
     title(sprintf('%s', filename));
 end
